@@ -1,0 +1,15 @@
+{
+  "model": {
+    "name": "dummy_baseline",
+    "random_state": 42,
+    "num_predictions": 5
+  },
+  "evaluation": {
+    "known_ratio": 0.5,
+    "split_by": "add_to_cart_order",
+    "metrics": ["recall_at_k", "precision_at_k"]
+  },
+  "data": {
+    "sample_size": null
+  }
+}
