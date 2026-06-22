@@ -87,6 +87,30 @@ curl -X GET http://localhost:8000/health
 {"status":"ok","catalog_size":49677,"model":{"random_state":42,"num_predictions":5}}
 ```
 
+
+
+## Infra setup
+| File |	Purpose |
+| ---- | -------- |
+| main.tf |	Provider, required version, backend placeholder |
+| variables.tf |	Region, project name, instance type, etc. |
+| s3.tf |	recsys-baseline-dev-data bucket (raw CSVs) — recsys-baseline-dev-artifacts bucket (model outputs) — versioning + encryption |
+| iam.tf	| SageMaker execution role with S3 read/write, ECR pull, CloudWatch logs |
+| sagemaker.tf	| ECR repo (training image), Notebook instance (dev exploration), SageMaker Model + EndpointConfig + Endpoint (serving), Model Package Group (registry), null_resource with CLI template for triggering training |
+| outputs.tf	| Bucket ARNs, role ARN, ECR URL, endpoint name, model name, notebook name |
+
+Data flow:
+1. CSVs uploaded to s3://...-data/data/ via aws_s3_object
+2. Training container image pushed to ECR (built separately)
+3. User triggers aws sagemaker create-training-job (command template in null_resource)
+4. Training reads from data bucket, writes catalog.npy + config.json → artifacts bucket
+5. SageMaker Model + Endpoint serve inference from those artifacts
+6. Model versions tracked via SageMaker Model Package Group
+```
+cd infra/terraform
+terraform plan   # preview (no apply = no AWS spend)
+```
+
 ## Engineering decision log
 
 | Decision | alternatives | selected option | justification | tradeoff |
