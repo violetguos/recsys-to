@@ -86,3 +86,9 @@ Response
 curl -X GET http://localhost:8000/health
 {"status":"ok","catalog_size":49677,"model":{"random_state":42,"num_predictions":5}}
 ```
+
+## Engineering decision log
+
+| Decision | alternatives | selected option | justification | tradeoff |
+| -------  | ------------| --------------- | --------------- | --------|
+| build a baseline model | build a full machine learning model | baseline model | Amazon setup cost | included a terraform file to define data access and job |
