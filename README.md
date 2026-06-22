@@ -28,6 +28,9 @@ uv run python main.py evaluate
 
 # Quick eval with 10K sample
 uv run python main.py evaluate --sample 10000
+
+# Start the API server (requires trained model in outputs/baseline/)
+uv run uvicorn src.api:app --reload
 ```
 
 ## Baseline Model
@@ -64,3 +67,22 @@ Model and evaluation parameters are stored in `configs/` as JSON files:
 | Invalid Timestamps | Yes | `order_dow` [0-6], `order_hour_of_day` [0-23], `days_since_prior_order` ≥ 0 |
 | Invalid Interaction Values | Yes | `add_to_cart_order` ≥ 1, `reordered` ∈ {0,1}, `order_number` ≥ 1 |
 | Reference Integrity | Yes | FK checks across all tables |
+
+## Model API
+
+Example request after starting the local API
+```
+curl -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"known_products": [1, 2, 3], "num_predictions": 3}'
+```
+
+Response
+```
+{"predictions":[{"product_id":41981,"product_name":"Triphala, Vegetarian Capsules","aisle":"digestion","department":"personal care"},{"product_id":11654,"product_name":"Blood Orange Meyer Lemon Ginger Ale","aisle":"soft drinks","department":"beverages"},{"product_id":13053,"product_name":"Whole  Cashews","aisle":"nuts seeds dried fruit","department":"snacks"}],"model":"DummyBaseline","num_predictions":3,"catalog_size":49677}
+```
+
+```
+curl -X GET http://localhost:8000/health
+{"status":"ok","catalog_size":49677,"model":{"random_state":42,"num_predictions":5}}
+```
