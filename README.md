@@ -6,6 +6,8 @@ Data quality checks and baseline models for the [Instacart Market Basket Analysi
 
 ## Setup
 
+Detailed reasons and why certain tools were selected, see [tool_selection.md](./architecture/tool_selection.md)
+
 ```bash
 uv sync
 source .venv/bin/activate
@@ -110,3 +112,6 @@ terraform plan   # preview without spending
 | Invalid Timestamps | Yes | `order_dow` [0-6], `order_hour_of_day` [0-23], `days_since_prior_order` ≥ 0 |
 | Invalid Interaction Values | Yes | `add_to_cart_order` ≥ 1, `reordered` ∈ {0,1}, `order_number` ≥ 1 |
 | Reference Integrity | Yes | FK checks across all tables |
+
+## Detailed design and architecture decisions
+Please refer to [solution_architecture.md](./architecture/solution_architecture.md)

@@ -12,4 +12,4 @@ This means assuming that we have data to work with, and not building the full da
 06_generate_recommendations - implemented in api
 07_publish_results - can be done via a curl, see README.md
 
-
+I included terraform files to provision AWS resources, and models are trained using numpy and scikitlearn for demostrative purposes. I chose not to implement deep learning frameworks due to the compute that they require. This project sets up a good practice to evolve into deep learning.
