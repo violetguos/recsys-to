@@ -1,6 +1,6 @@
 # recsys-to
 
-Data quality checks and baseline model for the [Instacart Market Basket Analysis](https://www.kaggle.com/c/instacart-market-basket-analysis) dataset.
+Data quality checks and baseline models for the [Instacart Market Basket Analysis](https://www.kaggle.com/c/instacart-market-basket-analysis) dataset.
 
 **Problem:** Given an order with a subset of known products, predict the remaining products in the order.
 
@@ -14,48 +14,91 @@ source .venv/bin/activate
 ## Commands
 
 ```bash
-# Run data quality checks on the full dataset
+# Data quality (24 checks)
 uv run python main.py quality
 
-# Quick quality check (sample 100K rows per table)
-uv run python main.py quality --sample 100000
-
-# Train the dummy baseline model
+# Train dummy baseline (random)
 uv run python main.py train
 
-# Evaluate on train orders
+# Evaluate dummy
 uv run python main.py evaluate
 
-# Quick eval with 10K sample
-uv run python main.py evaluate --sample 10000
+# Train tree model (RandomForest — generates features, trains on 100K orders)
+uv run python main.py train-tree
 
-# Start the API server (requires trained model in outputs/baseline/)
+# Evaluate tree
+uv run python main.py evaluate-tree --sample 20000
+
+# API server (loads both models if available)
 uv run uvicorn src.api:app --reload
 ```
 
-## Baseline Model
+## Model Comparison
 
-`DummyBaseline` randomly samples products from the full catalog, ignoring all input features. This provides a lower-bound reference for future models.
+| Model | Recall@5 | Description |
+|-------|----------|-------------|
+| DummyBaseline (random) | ~0.0001 | Uniform random sampling from 50K products |
+| TreeBaseline (RandomForest) | **0.0369** | Learns product popularity + order context features |
 
-**Training:** Extracts the set of all unique `product_id` values from `order_products__prior.csv`.
+## Tree Model — Features
 
-**Evaluation:** For each order in `order_products__train.csv`:
-1. Sort products by `add_to_cart_order` (simulating a basket-filling sequence)
-2. Split the first `known_ratio` fraction as known, the rest as target
-3. Predict `num_predictions` products
-4. Compute `recall_at_k` and `precision_at_k`
+Features computed per (order, product) pair:
 
-## Configuration
+| Feature | Source | Description |
+|---------|--------|-------------|
+| `order_dow` | orders | Day of week (0–6) |
+| `order_hour_of_day` | orders | Hour (0–23) |
+| `days_since_prior_order` | orders | Days since last order (NaN → -1) |
+| `order_number` | orders | Order sequence for this user |
+| `popularity` | aggregated | How many prior orders contain this product |
+| `reorder_rate` | aggregated | Fraction of orders where product was reordered |
+| `avg_cart_pos` | aggregated | Average add-to-cart position |
+| `aisle_id` | products | Product aisle |
+| `department_id` | products | Product department |
 
-Model and evaluation parameters are stored in `configs/` as JSON files:
+Generated via `src/features.py` — product stats are pre-computed, then positive + negative sampled examples are merged. Training features are stored to `outputs/tree/features/train_features.parquet`.
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `model.random_state` | 42 | RNG seed for reproducibility |
-| `model.num_predictions` | 5 | Number of products to predict per order |
-| `evaluation.known_ratio` | 0.5 | Fraction of products treated as "known" in each order |
-| `evaluation.split_by` | `add_to_cart_order` | Sorting key for known/target split |
-| `evaluation.metrics` | `[recall_at_k, precision_at_k]` | Metrics to compute |
+## API
+
+```bash
+# Test health
+curl http://localhost:8000/health
+
+# Predict with dummy model (default)
+curl -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"known_products": [1, 2, 3], "num_predictions": 3}'
+
+# Predict with tree model
+curl -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"known_products": [1, 2, 3], "model": "tree", "order_context": {"order_dow": 2, "order_hour_of_day": 10}}'
+
+# Product lookup
+curl http://localhost:8000/products/1
+```
+
+Both models are served from the same `/predict` endpoint — switch with `"model": "dummy"` (default) or `"model": "tree"`.
+
+## Scale Notes
+
+Training uses 100K prior orders (~3% of 3.2M) with 1:1 negative sampling → 1.9M training rows. The full dataset (32M prior rows) would produce ~64M training rows. Feature generation uses vectorized merges for positives and per-order negative sampling with `numpy.setdiff1d` + `set_index` lookups. For full-scale training, increase `max_orders_for_training` in `configs/tree_config.json` and tune `n_negatives_per_positive`.
+
+## Infra setup (AWS / Terraform)
+
+| File | Purpose |
+| ---- | ------- |
+| `main.tf` | Provider, required version, backend placeholder |
+| `variables.tf` | Region, project name, instance type, etc. |
+| `s3.tf` | Data bucket (raw CSVs) + Artifacts bucket (model outputs) |
+| `iam.tf` | SageMaker execution role with S3/ECR/CloudWatch access |
+| `sagemaker.tf` | ECR repo, Notebook instance, SageMaker Model + Endpoint, Model Package Group |
+| `outputs.tf` | Bucket ARNs, role ARN, ECR URL, endpoint name |
+
+```bash
+cd infra/terraform
+terraform plan   # preview without spending
+```
 
 ## Data Quality Checks
 
@@ -67,52 +110,3 @@ Model and evaluation parameters are stored in `configs/` as JSON files:
 | Invalid Timestamps | Yes | `order_dow` [0-6], `order_hour_of_day` [0-23], `days_since_prior_order` ≥ 0 |
 | Invalid Interaction Values | Yes | `add_to_cart_order` ≥ 1, `reordered` ∈ {0,1}, `order_number` ≥ 1 |
 | Reference Integrity | Yes | FK checks across all tables |
-
-## Model API
-
-Example request after starting the local API
-```
-curl -X POST http://localhost:8000/predict \
-  -H 'Content-Type: application/json' \
-  -d '{"known_products": [1, 2, 3], "num_predictions": 3}'
-```
-
-Response
-```
-{"predictions":[{"product_id":41981,"product_name":"Triphala, Vegetarian Capsules","aisle":"digestion","department":"personal care"},{"product_id":11654,"product_name":"Blood Orange Meyer Lemon Ginger Ale","aisle":"soft drinks","department":"beverages"},{"product_id":13053,"product_name":"Whole  Cashews","aisle":"nuts seeds dried fruit","department":"snacks"}],"model":"DummyBaseline","num_predictions":3,"catalog_size":49677}
-```
-
-```
-curl -X GET http://localhost:8000/health
-{"status":"ok","catalog_size":49677,"model":{"random_state":42,"num_predictions":5}}
-```
-
-
-
-## Infra setup
-| File |	Purpose |
-| ---- | -------- |
-| main.tf |	Provider, required version, backend placeholder |
-| variables.tf |	Region, project name, instance type, etc. |
-| s3.tf |	recsys-baseline-dev-data bucket (raw CSVs) — recsys-baseline-dev-artifacts bucket (model outputs) — versioning + encryption |
-| iam.tf	| SageMaker execution role with S3 read/write, ECR pull, CloudWatch logs |
-| sagemaker.tf	| ECR repo (training image), Notebook instance (dev exploration), SageMaker Model + EndpointConfig + Endpoint (serving), Model Package Group (registry), null_resource with CLI template for triggering training |
-| outputs.tf	| Bucket ARNs, role ARN, ECR URL, endpoint name, model name, notebook name |
-
-Data flow:
-1. CSVs uploaded to s3://...-data/data/ via aws_s3_object
-2. Training container image pushed to ECR (built separately)
-3. User triggers aws sagemaker create-training-job (command template in null_resource)
-4. Training reads from data bucket, writes catalog.npy + config.json → artifacts bucket
-5. SageMaker Model + Endpoint serve inference from those artifacts
-6. Model versions tracked via SageMaker Model Package Group
-```
-cd infra/terraform
-terraform plan   # preview (no apply = no AWS spend)
-```
-
-## Engineering decision log
-
-| Decision | alternatives | selected option | justification | tradeoff |
-| -------  | ------------| --------------- | --------------- | --------|
-| build a baseline model | build a full machine learning model | baseline model | Amazon setup cost | included a terraform file to define data access and job |

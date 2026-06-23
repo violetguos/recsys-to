@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Instacart Market Basket Analysis - data quality checks and baseline model"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["pandas>=2.0", "scikit-learn>=1.4", "fastapi>=0.110", "uvicorn[standard]>=0.29"]
+dependencies = ["pandas>=2.0", "scikit-learn>=1.4", "fastapi>=0.110", "uvicorn[standard]>=0.29", "pyarrow>=14"]
 
 [project.scripts]
 recsys = "main:main"

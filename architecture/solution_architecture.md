@@ -92,8 +92,11 @@ See [README.md](README.md) section Data Quality Checks
 ### Modeling
 
 Problem statement:
-- given an order with multiple products, predict product given a subset of products in the order.
+- I retrieved the Instacart opensource grocery dataset
+- given an order with multiple products, predict product given a subset of products in the order. For example, if I ordered shampoo and conditioner, I will mask shampoo, and train the model to predict conditioner.
 
+
+Baseline:
 We will use a baseline dummy model that randomly select from all possible products.
 Use scikitlearn, and store all model parameters in configs/ using jsons.
 
@@ -101,5 +104,40 @@ Baseline results (full dataset, 49,677 products):
 - recall@5: 0.000111
 - precision@5: 0.000101
 
+Tree based model:
 
-We will use a simple Word2Vec and XGBoost 
+We will use a simple tree based model that's trained locally for the same problem. Random forest is a classic machine learning model, and can be a precursor to the XGBoost and other deep learning models. Tree based models are computationally lightweight, and highly performant, and highly transparent in audits.
+
+New files
+| File | Purpose |
+| ---- | ------- |
+| src/features.py	| Product stats aggregation + training feature generation + prediction feature builder. Stored locally as parquet at outputs/tree/features/train_features.parquet |
+| src/tree_model.py |	TreeBaseline — RandomForest (100 trees, depth 10, 1.9M training rows) with fit/predict/save/load |
+| configs/tree_config.json |	Model params + feature config |
+
+Updated files
+| File |	Change |
+| ---- | ------- |
+| main.py |	Added train-tree and evaluate-tree subcommands
+src/api.py	Both models served from /predict — switch with "model": "dummy" or "model": "tree"; tree accepts optional order_context |
+| pyproject.toml | Added pyarrow (parquet support) |
+| README.md | Full documentation |
+
+Results
+| Model | Recall@5	| vs Random |
+| ---- | ---------- | --------- |
+| DummyBaseline | 0.0001 | 1× |
+| TreeBaseline | 0.0369	| ~370× |
+
+The tree learns mostly global product popularity (bananas, organic avocados, strawberries at the top), with some adjustment from order context features.
+API usage
+### Tree model with order context
+```
+curl -X POST http://localhost:8000/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"known_products": [1,2,3], "model": "tree", "order_context": {"order_dow": 2, "order_hour_of_day": 10}}'
+```
+Results
+```
+{"predictions":[{"product_id":24852,"product_name":"Banana","aisle":"fresh fruits","department":"produce"},{"product_id":13176,"product_name":"Bag of Organic Bananas","aisle":"fresh fruits","department":"produce"},{"product_id":47209,"product_name":"Organic Hass Avocado","aisle":"fresh fruits","department":"produce"},{"product_id":21137,"product_name":"Organic Strawberries","aisle":"fresh fruits","department":"produce"},{"product_id":47766,"product_name":"Organic Avocado","aisle":"fresh fruits","department":"produce"}],"model":"TreeBaseline","num_predictions":5,"catalog_size":49688}
+```

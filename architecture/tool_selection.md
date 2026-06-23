@@ -4,11 +4,12 @@ This repo will focus on the infrastructure for data ingestion, mdel registry, an
 
 This means assuming that we have data to work with, and not building the full data ingestion since that requires collecting clicks and impressions across the city's websites.
 
-01_load_data
-02_validate_data
-03_generate_features
-04_train_model
-05_evaluate_model
-06_generate_recommendations
-07_publish_results
+01_load_data - loader using parquest and numpy
+02_validate_data - `data_quality.py`
+03_generate_features - shared feature processing in `features.py`
+04_train_model - implemented in model classes
+05_evaluate_model - implemented in `evaluation.py`
+06_generate_recommendations - implemented in api
+07_publish_results - can be done via a curl, see README.md
+
 
