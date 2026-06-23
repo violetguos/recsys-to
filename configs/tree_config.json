@@ -1,0 +1,21 @@
+{
+  "model": {
+    "name": "tree_baseline",
+    "random_state": 42,
+    "num_predictions": 5,
+    "max_depth": 10,
+    "n_estimators": 100,
+    "min_samples_leaf": 50
+  },
+  "features": {
+    "n_negatives_per_positive": 1,
+    "max_orders_for_training": 100000,
+    "max_candidates_at_inference": 1000
+  },
+  "evaluation": {
+    "metrics": ["recall_at_k", "precision_at_k"]
+  },
+  "data": {
+    "sample_size": null
+  }
+}
