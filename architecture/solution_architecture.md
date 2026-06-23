@@ -129,7 +129,8 @@ Results
 | DummyBaseline | 0.0001 | 1× |
 | TreeBaseline | 0.0369	| ~370× |
 
-The tree learns mostly global product popularity (bananas, organic avocados, strawberries at the top), with some adjustment from order context features.
+The tree learns mostly global product popularity (bananas, organic avocados, strawberries at the top), with some adjustment from order context features. See this [detailed report](https://github.com/violetguos/recsys-to/pull/3) for model features and result interpretation
+
 API usage
 ### Tree model with order context
 ```
