@@ -217,6 +217,33 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+## added for terraform
+# Local .terraform directories (contains provider plugins and modules)
+.terraform/
+
+# .tfstate files contain the current state of your infrastructure.
+# These should NOT be stored in Git. Use a remote backend instead.
+*.tfstate
+*.tfstate.*
+
+# Crash logs encountered during runtime
+crash.log
+crash.*.log
+
+# Exclude all variable files as they typically contain sensitive credentials
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are local modifications
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
 # my files
 data/
 outputs/
