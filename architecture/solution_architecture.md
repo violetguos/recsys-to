@@ -1,15 +1,12 @@
 # Solution architecture
 
-
-
-
 ## Overall Design
 
 In roder to build a recommendation system into the city's system, we need to prepare the infrastructure and for data ingestion, feature engineering, training, serving, monitoring, governance, and deployment.
 
 I discussed how I designed for the following components in this demo. This demo focuses on the training lifecycle, shared infrastructure, shared storage, model parameter storage and configurations, reproducibility and production readiness through a lifecycle of two simple models.
 
-### Data
+## Data
 
 This repo will use open source e commerce data from Instacart. We will omit the full data ingestion since that requires collecting clicks and impressions across the city's websites.
 

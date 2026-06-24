@@ -16,8 +16,7 @@ WORKDIR /app
 
 COPY src/ src/
 COPY configs/ configs/
-COPY outputs/ outputs/
-COPY data/ data/
+RUN mkdir -p /app/data /app/outputs/baseline /app/outputs/tree
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV UVICORN_HOST=0.0.0.0
