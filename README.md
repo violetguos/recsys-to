@@ -60,7 +60,7 @@ Features computed per (order, product) pair:
 
 Generated via `src/features.py` — product stats are pre-computed, then positive + negative sampled examples are merged. Training features are stored to `outputs/tree/features/train_features.parquet`.
 
-## API
+ ## API
 
 ```bash
 # Test health
@@ -81,6 +81,36 @@ curl http://localhost:8000/products/1
 ```
 
 Both models are served from the same `/predict` endpoint — switch with `"model": "dummy"` (default) or `"model": "tree"`.
+
+## Docker
+
+```bash
+# Build
+docker build -t recsys-to .
+
+# Run (mount local outputs/data for live artifacts)
+docker run -p 8000:8000 \
+  -v "$(pwd)/outputs:/app/outputs" \
+  -v "$(pwd)/data:/app/data" \
+  recsys-to
+
+# Or with compose (includes hot-reload)
+docker compose up
+```
+
+## CI
+
+Push/PR to `main` triggers GitHub Actions (`.github/workflows/ci.yml`):
+1. **lint** — `ruff check src/ tests/`
+2. **test** — `pytest` (model-dependent tests skip gracefully if artifacts absent)
+3. **docker** — build & push `ghcr.io/<repo>` image (main branch only)
+
+```bash
+# Run locally
+uv sync --group dev
+uv run ruff check src/ tests/
+uv run pytest tests/ -v
+```
 
 ## Scale Notes
 

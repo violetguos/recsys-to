@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = ["pandas>=2.0", "scikit-learn>=1.4", "fastapi>=0.110", "uvicorn[standard]>=0.29", "pyarrow>=14"]
 
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
+
 [project.scripts]
 recsys = "main:main"
 

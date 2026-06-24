@@ -1,16 +1,35 @@
+# Solution architecture
+
+
+
+
 ## Overall Design
 
 In roder to build a recommendation system into the city's system, we need to prepare the infrastructure and for data ingestion, feature engineering, training, serving, monitoring, governance, and deployment.
 
-### Data Ingestion
+I discussed how I designed for the following components in this demo. This demo focuses on the training lifecycle, shared infrastructure, shared storage, model parameter storage and configurations, reproducibility and production readiness through a lifecycle of two simple models.
+
+### Data
+
+This repo will use open source e commerce data from Instacart. We will omit the full data ingestion since that requires collecting clicks and impressions across the city's websites.
+
+See [README.md](README.md) section Data Quality Checks
+
+### Modeling
+
+Problem statement:
+- I retrieved the Instacart open source grocery dataset
+- given an order with multiple products, predict product given a subset of products in the order. For example, if I ordered shampoo and conditioner, I will mask shampoo, and train the model to predict conditioner.
+
+### Data Ingestion - Enrichment
 
 In order to collect useful data for the city's website usage, we need to collect user interactions with the City's system. In online advertising, this is commonly referred to as first party (1P) data. For example, the system wants to track users who browsed and clicked on children's swimming classes, so the model can be trained to recommend more children's sports.
 
-However, the city works with multiple divisions, and if there is no shared infrastructure, it essentially becomes a third party data ingestion (3P). This can be implemented after 1P, and generally, needs collaboration with the other divisions to enable data sharing across different platforms.
+However, the city works with multiple divisions, and if there is no shared infrastructure, it essentially becomes a third party data ingestion (3P). This can be implemented after 1P, and generally, needs collaboration with the other divisions to enable data sharing across different platforms. This will be done in a way that is respectful of user privacy.
 
 Other than click and impression events described above, we may also extend data ingestion into omni-channel. In e-commerce, this often refers to in store activities. Continuing with the recreation example above, there are many classes that requires signing up by phone calls. We can enrich the events data by combining offline activies, such as phone calls.
 
-Historical activities, such as the class participant's list, can be used to solve the cold start problem in recommendataion systems. 
+Historical activities, such as the class participant's list from previous years, can be used to solve the cold start problem in recommendataion systems. 
 
 ### Feature engineering
 
@@ -26,7 +45,7 @@ Features should be stored in a centralized database, and the paths to the storag
 
 ### Model training
 
-I propose a true north star metric to be something outside of the modeling world, such as a resident survey conducted throughout different cohorts. Their overall feedback is something we optimize for, instead of treating this as a purely mathematical problem.
+I propose a true north star metric to be something outside of the modeling world, such as a resident survey conducted for different cohorts. Their overall feedback is something we optimize for, instead of treating this as a purely mathematical problem.
 
 As a proxy for their experience, we can define a baseline similarity measure for the recommendations. We can use a standard similarity or probablity measure for all the possible combinations. The baseline model could simply be a random generator, which picks any UI popup at random for a match with "swimming class". If there are 100 activities, and all activies are euqally probably to be recommended, the Shannon entropy is maximal, where H = 6.64.
 
@@ -60,11 +79,11 @@ The response is generated using the session info like so
 
 The model performance should be evaluated using live sessions data and compared with the evaluation results on historical data to catch any significant drift.
 
-A platform wide infrastructure should be enabled to toggle traffic between different models. Note that this infrastructure can be used by other teams that work with the city in any capcity.
+A platform wide infrastructure should be enabled to toggle traffic between different models. Note that this experimentation and release infrastructure can be used by other teams that work on the city's website.
 
-If there is a drift, we can toggle the traffic to 100% go to the better model's endpoint, and investigate.
+If there is a drift, we can toggle the traffic off, and investigate.
 
-If there is an incident, we should immediately revert to the previous working model.
+If there is an incident, we can immediately revert to the previous working model.
 
 ### Security and governance
 
@@ -83,22 +102,9 @@ We can also whitelist some users if we can organize a beta test. This can be don
 
 ## Solution overview
 
-### Data
-
-This repo will use open source e commerce data from Instacart. We will omit the full data ingestion since that requires collecting clicks and impressions across the city's websites.
-
-See [README.md](README.md) section Data Quality Checks
-
-### Modeling
-
-Problem statement:
-- I retrieved the Instacart opensource grocery dataset
-- given an order with multiple products, predict product given a subset of products in the order. For example, if I ordered shampoo and conditioner, I will mask shampoo, and train the model to predict conditioner.
-
-
 Baseline:
 We will use a baseline dummy model that randomly select from all possible products.
-Use scikitlearn, and store all model parameters in configs/ using jsons.
+Use scikitlearn, and store all model parameters in `configs/` using jsons.
 
 Baseline results (full dataset, 49,677 products):
 - recall@5: 0.000111
