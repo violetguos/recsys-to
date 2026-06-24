@@ -44,24 +44,34 @@ def _load_csv(name: str) -> pd.DataFrame:
 
 def build_app(model_dir: Path = MODEL_DIR, tree_dir: Path = TREE_DIR,
               data_dir: Path = DATA_DIR) -> FastAPI:
-    if not model_dir.exists():
-        raise FileNotFoundError(f"Dummy model directory not found: {model_dir}")
+    catalog: np.ndarray
+    config: dict
+    default_k: int
 
-    catalog = np.load(model_dir / "catalog.npy")
-    config = json.loads((model_dir / "config.json").read_text())
-    default_k = config.get("model", {}).get("num_predictions", 5)
+    if model_dir.exists() and (model_dir / "catalog.npy").exists():
+        catalog = np.load(model_dir / "catalog.npy")
+        config = json.loads((model_dir / "config.json").read_text())
+        default_k = config.get("model", {}).get("num_predictions", 5)
+    else:
+        catalog = np.array([], dtype=int)
+        config = {"model": {"num_predictions": 5}}
+        default_k = 5
 
     tree_model: TreeBaseline | None = None
     if tree_dir.exists() and (tree_dir / "model.joblib").exists():
         tree_model = TreeBaseline().load(tree_dir)
         print(f"Tree model loaded (catalog_size={len(tree_model.catalog_)})")
 
-    products = _load_csv("products")
-    aisles = _load_csv("aisles")
-    departments = _load_csv("departments")
-    products = products.merge(aisles, on="aisle_id", how="left")
-    products = products.merge(departments, on="department_id", how="left")
-    product_lookup = products.set_index("product_id")
+    try:
+        products = _load_csv("products")
+        aisles = _load_csv("aisles")
+        departments = _load_csv("departments")
+        products = products.merge(aisles, on="aisle_id", how="left")
+        products = products.merge(departments, on="department_id", how="left")
+        product_lookup = products.set_index("product_id")
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        print("WARNING: product CSV files not found — product names will be 'unknown'")
+        product_lookup = pd.DataFrame(columns=["product_id", "product_name", "aisle", "department"]).set_index("product_id")
 
     app = FastAPI(title="RecSys-Baseline", version="0.1.0")
 
@@ -105,9 +115,10 @@ def build_app(model_dir: Path = MODEL_DIR, tree_dir: Path = TREE_DIR,
             exclude = np.array(req.known_products, dtype=int)
             candidates = np.setdiff1d(catalog, exclude)
             if len(candidates) == 0:
-                raise HTTPException(400, "No candidates available after excluding known products")
-            n = min(k, len(candidates))
-            chosen = rng.choice(candidates, size=n, replace=False)
+                chosen = np.array([], dtype=int)
+            else:
+                n = min(k, len(candidates))
+                chosen = rng.choice(candidates, size=n, replace=False)
             cat_size = len(catalog)
 
         predictions = []
