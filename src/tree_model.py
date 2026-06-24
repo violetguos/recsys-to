@@ -75,7 +75,6 @@ class TreeBaseline:
         if self.model is None or self.product_stats is None or self.catalog_ is None:
             raise RuntimeError("Model not trained. Call fit() first.")
 
-        rng = np.random.default_rng(self.random_state)
         exclude = known_products if known_products is not None else np.array([], dtype=int)
 
         n_candidates = min(1000, len(self.catalog_))
