@@ -13,3 +13,12 @@ This means assuming that we have data to work with, and not building the full da
 - 07_publish_results - implemented in fastapi
 
 I included terraform files to provision AWS resources, and models are trained using numpy and scikitlearn for demostrative purposes. I chose not to implement deep learning frameworks due to the compute that they require. This project sets up a good practice to evolve into deep learning.
+
+Cost estimate for a random forest model
+
+| Resource |	Full-catalog training (once) |
+| ------- | ------------------ |
+| SageMaker Training (ml.c5.4xlarge, 2 hrs) |	~$1.40 |
+| SageMaker Training (ml.m5.4xlarge, 1 hr)	| ~$0.90 |
+| SageMaker Endpoint (ml.m5.large, 24/7) |	~$90/mo |
+| Feature storage (S3, ~500 MB parquet) |	~$0.01/mo |
