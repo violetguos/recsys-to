@@ -144,4 +144,4 @@ terraform plan   # preview without spending
 | Reference Integrity | Yes | FK checks across all tables |
 
 ## Detailed design and architecture decisions
-Please refer to [solution_architecture.md](./architecture/solution_architecture.md)
+Please refer to [solution_architecture.md](./architecture/solution_architecture.md), [tools](./architecture/tool_selection.md), [decisions](./architecture/decisions_log.md), and [operational scenarios](./architecture/operational_scenarios.md)
