@@ -132,3 +132,9 @@ terraform plan   # preview without spending
 
 ## Detailed design and architecture decisions
 Please refer to [solution_architecture.md](./architecture/solution_architecture.md), [tools](./architecture/tool_selection.md), [decisions](./architecture/decisions_log.md), and [operational scenarios](./architecture/operational_scenarios.md)
+
+## Time spent
+Calculated in points
+- Design and research: 5 pts
+- Implementation and testing: 7 pts
+- Result consolidation and reporting: 3 pts
