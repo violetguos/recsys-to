@@ -1,16 +1,34 @@
 # recsys-to
 
-Data quality checks and baseline models for the [Instacart Market Basket Analysis](https://www.kaggle.com/c/instacart-market-basket-analysis) dataset.
+In roder to build a recommendation system into the city's system, we need to prepare the infrastructure and for data ingestion, feature engineering, training, serving, monitoring, governance, and deployment.
 
-**Problem:** Given an order with a subset of known products, predict the remaining products in the order.
+I discussed how I designed for the following components in this demo. This demo focuses on the training lifecycle, shared infrastructure, shared storage, model parameter storage and configurations, reproducibility and production readiness through a lifecycle of two simple models.
+
 
 ## Setup
 
 Detailed reasons and why certain tools were selected, see [tool_selection.md](./architecture/tool_selection.md)
 
 ```bash
+# install packages
 uv sync
 source .venv/bin/activate
+```
+
+## Docker
+
+```bash
+# Build
+docker build -t recsys-to .
+
+# Run (mount local outputs/data for live artifacts)
+docker run -p 8000:8000 \
+  -v "$(pwd)/outputs:/app/outputs" \
+  -v "$(pwd)/data:/app/data" \
+  recsys-to
+
+# Or with compose (includes hot-reload)
+docker compose up
 ```
 
 ## Commands
@@ -35,7 +53,7 @@ uv run python main.py evaluate-tree --sample 20000
 uv run uvicorn src.api:app --reload
 ```
 
-## Model Comparison
+## Overall results - Model Comparison
 
 | Model | Recall@5 | Description |
 |-------|----------|-------------|
@@ -60,7 +78,7 @@ Features computed per (order, product) pair:
 
 Generated via `src/features.py` — product stats are pre-computed, then positive + negative sampled examples are merged. Training features are stored to `outputs/tree/features/train_features.parquet`.
 
- ## API
+## API - model deployment
 
 ```bash
 # Test health
@@ -82,39 +100,19 @@ curl http://localhost:8000/products/1
 
 Both models are served from the same `/predict` endpoint — switch with `"model": "dummy"` (default) or `"model": "tree"`.
 
-## Docker
-
-```bash
-# Build
-docker build -t recsys-to .
-
-# Run (mount local outputs/data for live artifacts)
-docker run -p 8000:8000 \
-  -v "$(pwd)/outputs:/app/outputs" \
-  -v "$(pwd)/data:/app/data" \
-  recsys-to
-
-# Or with compose (includes hot-reload)
-docker compose up
-```
-
 ## CI
 
 Push/PR to `main` triggers GitHub Actions (`.github/workflows/ci.yml`):
 1. **lint** — `ruff check src/ tests/`
 2. **test** — `pytest` (model-dependent tests skip gracefully if artifacts absent)
-3. **docker** — build & push `ghcr.io/<repo>` image (main branch only)
+3. **docker** — build & push `ghcr.io/<repo>` image, skip gracefully if artifacts absent
 
 ```bash
-# Run locally
+# Run CI tests locally
 uv sync --group dev
 uv run ruff check src/ tests/
 uv run pytest tests/ -v
 ```
-
-## Scale Notes
-
-Training uses 100K prior orders (~3% of 3.2M) with 1:1 negative sampling → 1.9M training rows. The full dataset (32M prior rows) would produce ~64M training rows. Feature generation uses vectorized merges for positives and per-order negative sampling with `numpy.setdiff1d` + `set_index` lookups. For full-scale training, increase `max_orders_for_training` in `configs/tree_config.json` and tune `n_negatives_per_positive`.
 
 ## Infra setup (AWS / Terraform)
 
@@ -131,17 +129,6 @@ Training uses 100K prior orders (~3% of 3.2M) with 1:1 negative sampling → 1.9
 cd infra/terraform
 terraform plan   # preview without spending
 ```
-
-## Data Quality Checks
-
-| Check | Blocking | Description |
-|-------|----------|-------------|
-| Schema Validation | Yes | Expected columns match |
-| Missing Identifiers | Yes | No nulls in key columns |
-| Duplicate Records | No | Logs dupe count, non-blocking |
-| Invalid Timestamps | Yes | `order_dow` [0-6], `order_hour_of_day` [0-23], `days_since_prior_order` ≥ 0 |
-| Invalid Interaction Values | Yes | `add_to_cart_order` ≥ 1, `reordered` ∈ {0,1}, `order_number` ≥ 1 |
-| Reference Integrity | Yes | FK checks across all tables |
 
 ## Detailed design and architecture decisions
 Please refer to [solution_architecture.md](./architecture/solution_architecture.md), [tools](./architecture/tool_selection.md), [decisions](./architecture/decisions_log.md), and [operational scenarios](./architecture/operational_scenarios.md)

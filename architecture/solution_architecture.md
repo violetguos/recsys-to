@@ -6,16 +6,13 @@ In roder to build a recommendation system into the city's system, we need to pre
 
 I discussed how I designed for the following components in this demo. This demo focuses on the training lifecycle, shared infrastructure, shared storage, model parameter storage and configurations, reproducibility and production readiness through a lifecycle of two simple models.
 
-## Data
 
-This repo will use open source e commerce data from Instacart. We will omit the full data ingestion since that requires collecting clicks and impressions across the city's websites.
+### Modeling demo:
+This repo will use open source e commerce data from Instacart. We will outlined the full data ingestion plan below.
 
-See [README.md](README.md) section Data Quality Checks
+For the demo, we will use [Instacart open source grocery](https://www.kaggle.com/c/instacart-market-basket-analysis) dataset.
 
-### Modeling
-
-Problem statement:
-- I retrieved the Instacart open source grocery dataset
+**Problem:** Given an order with a subset of known products, predict the remaining products in the order.
 - given an order with multiple products, predict product given a subset of products in the order. For example, if I ordered shampoo and conditioner, I will mask shampoo, and train the model to predict conditioner.
 
 ### Data Ingestion - Enrichment
@@ -111,19 +108,14 @@ Tree based model:
 
 We will use a simple tree based model that's trained locally for the same problem. Random forest is a classic machine learning model, and can be a precursor to the XGBoost and other deep learning models. Tree based models are computationally lightweight, and highly performant, and highly transparent in audits.
 
-New files
 | File | Purpose |
 | ---- | ------- |
 | src/features.py	| Product stats aggregation + training feature generation + prediction feature builder. Stored locally as parquet at outputs/tree/features/train_features.parquet |
 | src/tree_model.py |	TreeBaseline — RandomForest (100 trees, depth 10, 1.9M training rows) with fit/predict/save/load |
 | configs/tree_config.json |	Model params + feature config |
-
-Updated files
-| File |	Change |
-| ---- | ------- |
 | main.py |	Added train-tree and evaluate-tree subcommands
 src/api.py	Both models served from /predict — switch with "model": "dummy" or "model": "tree"; tree accepts optional order_context |
-| pyproject.toml | Added pyarrow (parquet support) |
+| pyproject.toml | Added pyarrow (parquet support for archiving features) |
 | README.md | Full documentation |
 
 Results
@@ -134,8 +126,7 @@ Results
 
 The tree learns mostly global product popularity (bananas, organic avocados, strawberries at the top), with some adjustment from order context features. See this [detailed report](https://github.com/violetguos/recsys-to/pull/3) for model features and result interpretation
 
-API usage
-### Tree model with order context
+### API usage - Tree model with order context
 ```
 curl -X POST http://localhost:8000/predict \
   -H 'Content-Type: application/json' \
@@ -145,3 +136,22 @@ Results
 ```
 {"predictions":[{"product_id":24852,"product_name":"Banana","aisle":"fresh fruits","department":"produce"},{"product_id":13176,"product_name":"Bag of Organic Bananas","aisle":"fresh fruits","department":"produce"},{"product_id":47209,"product_name":"Organic Hass Avocado","aisle":"fresh fruits","department":"produce"},{"product_id":21137,"product_name":"Organic Strawberries","aisle":"fresh fruits","department":"produce"},{"product_id":47766,"product_name":"Organic Avocado","aisle":"fresh fruits","department":"produce"}],"model":"TreeBaseline","num_predictions":5,"catalog_size":49688}
 ```
+
+
+### Data Quality Checks
+
+| Check | Blocking | Description |
+|-------|----------|-------------|
+| Schema Validation | Yes | Expected columns match |
+| Missing Identifiers | Yes | No nulls in key columns |
+| Duplicate Records | No | Logs dupe count, non-blocking |
+| Invalid Timestamps | Yes | `order_dow` [0-6], `order_hour_of_day` [0-23], `days_since_prior_order` ≥ 0 |
+| Invalid Interaction Values | Yes | `add_to_cart_order` ≥ 1, `reordered` ∈ {0,1}, `order_number` ≥ 1 |
+| Reference Integrity | Yes | FK checks across all tables |
+
+
+### Scaling Notes
+
+Training uses 100K prior orders (~3% of 3.2M) with 1:1 negative sampling → 1.9M training rows. The full dataset (32M prior rows) would produce ~64M training rows. Feature generation uses vectorized merges for positives and per-order negative sampling with `numpy.setdiff1d` + `set_index` lookups. For full-scale training, increase `max_orders_for_training` in `configs/tree_config.json` and tune `n_negatives_per_positive`.
+
+For future versions of models involving more vector based features and deep learning models, we will use more horizontal scaling and sharding storages. See [operationa_scenarios](./operational_scenarios.md), [cost estimates](./operational_scenarios.md) and [decisions_log](./decisions_log.md)
